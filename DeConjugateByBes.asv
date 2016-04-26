@@ -1,0 +1,287 @@
+function CaliedData=DeConjugateByBes(CaliedData, Order,FilePath)
+% global HRatioSum;
+debug =1;
+[PixelNum,AlineNum]=size(CaliedData);
+BandWidth=round(AlineNum/4.2);
+%% 1st or 2nd order FROCT
+if Order ==2
+    Phase=zeros(PixelNum,AlineNum);
+    ComplexImage=fft(CaliedData);
+    Phase(:,1)=angle(ComplexImage(:,1));
+    Phase(:,2:end)=angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1)));
+    ComplexImage=abs(ComplexImage).*exp(1i*Phase);
+    T
+%     ComplexImage(:,1:2:end)= ComplexImage(:,1:2:end)*exp(1i*0.5*pi);
+%     H0=GetFreqComp(ComplexImage',[1, BandWidth],3)';
+%     CaliedData=(ifft(H0));
+    
+    H0=GetFreqComp(ComplexImage',[2, BandWidth],3)';
+    H1=ComplexImage.*repmat([1,-1],[PixelNum,AlineNum/2]);%figure;plot(abs(fft(NewData,[],2))')
+    H1=GetFreqComp(H1',[2, BandWidth],3)'; 
+%     HRatio=median(HRatio);
+%     if sum(HRatio)>0
+    HRatio=1.4;%sum(abs(H1(:)))/sum(abs(H0(:)));
+%     else
+%         HRatio=-1.4;%sum(abs(H1(:)))/sum(abs(H0(:)));
+%     end
+    ComplexImage= H0*HRatio - 1i*H1;   
+    CaliedData=(ifft(ComplexImage));
+else
+    H0=GetFreqComp(CaliedData',[1, BandWidth],3)';
+    H1=CaliedData.*repmat([1,-1],[PixelNum,AlineNum/2]);%figure;plot(abs(fft(NewData,[],2))')
+    H1=GetFreqComp(H1',[1, BandWidth],3)'; 
+
+    HRatio=mean(abs(H1),2)./mean(abs(H0),2);
+%     figure;plot(HRatio);
+    X=(1:size(CaliedData,1))';
+    HRatio=polyval(polyfit(X(100:end-100),HRatio(100:end-100),3),X);
+
+%     fid = fopen([FilePath,'FRHRatio.dat'],'rb');
+%     HRatio = fread(fid,'double');fclose(fid);   
+    
+
+    HRatio = repmat(HRatio,[1,AlineNum]);
+%     HRatio = 1;
+    H0=HRatio.*H0;
+    CaliedData= H0 + 1i*H1;    
+end
+
+% Filter=gausswin(BandWidth*4/3,3.6);Filter(end/2:end)=1;
+% Filter=[flipud(Filter);zeros(AlineNum-size(Filter,1)*2,1);0;Filter(1:end-1)];
+%% method 1
+%     ComplexImage=ifft(CaliedData,2048);
+%     H0=GetFreqComp(ComplexImage',Filter,3)';
+%     H1=ComplexImage.*repmat([1,-1],[2048,AlineNum/2]);
+%     H1=GetFreqComp(H1',Filter,3)';    
+    
+%     HRatio=mean(abs(H1.^2),2)./mean(abs(H0.^2),2);
+%     ComplexImage=repmat(HRatio,[1,AlineNum]).* H0+1i*H1;
+%     IntensityImage=20*log10(abs(ComplexImage));
+%     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+%     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+%     
+%% method 2
+%     ComplexImage=ifft(CaliedData,2048);
+%     H0=GetFreqComp(ComplexImage',Filter,3)';
+%     H1=ComplexImage.*repmat([1,-1],[2048,AlineNum/2]);
+%     H1=GetFreqComp(H1',Filter,3)';    
+%     
+%     HRatio=mean(abs(H1(:).^2))./mean(abs(H0(:).^2));
+%     ComplexImage=HRatio * H0+1i*H1;
+%     IntensityImage=20*log10(abs(ComplexImage));
+%     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+%     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+%   
+%% method 3
+%     CaliedData(:,1:2:end)=CaliedData(:,1:2:end).*repmat(exp(1i*FSPhaseShift),1, AlineNum/2);
+%     CaliedData=GetFreqComp(CaliedData',Filter,3)';    
+%     ComplexImage=ifft(CaliedData,2048);
+%     IntensityImage=20*log10(abs(ComplexImage));   
+%     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+%     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);   
+%% 1st or 2nd order FROCT
+% if Order ==1
+%     H0=GetFreqComp(CaliedData',[1, BandWidth],3)';
+%     H1=CaliedData.*repmat([1,-1],[PixelNum,AlineNum/2]);%figure;plot(abs(fft(NewData,[],2))')
+%     H1=GetFreqComp(H1',[1, BandWidth],3)';  
+%     if ~isempty(FSPhaseShift)
+%         HRatio=tan(FSPhaseShift/2);    
+%     else
+%         HRatio=mean(abs(H1),2)./mean(abs(H0),2);
+%     end
+%     H0=repmat(HRatio,[1,AlineNum]).*H0;
+%     CaliedData= H0 + 1i*H1;    
+%     %% remove bg noise for mirror test
+%     if debug==2
+%         [~,Idx]=max(mean(abs(fft(CaliedData)),2));
+%         Filter=ones(PixelNum,1);
+%         Filter(Idx-20:Idx+20)=0;
+% %         Filter(max(PixelNum-18-Idx,2):min(PixelNum+22-Idx,PixelNum))=0;
+% 
+%         Ref=GetFreqComp(CaliedData,Filter,1);
+%         Ref=median(real(Ref),2)+1i*median(imag(Ref),2);
+%         Ref=repmat(Ref,1,AlineNum);
+%         CaliedData=CaliedData-Ref;
+%     end
+% 
+% else
+% %     CaliedData= H0 + 1i*H1;
+% %     ComplexImage=ifft(CaliedData);
+% %     IntensityImage=20*log10(abs(ComplexImage));
+% %     DisplayRange=GetDisplayRange(IntensityImage, [0.1 0]);
+% %     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+%     %% method 0
+%     Phase=zeros(PixelNum,AlineNum);
+%     ComplexImage=fft(CaliedData);
+%     Phase(:,1)=angle(ComplexImage(:,1));
+%     Phase(:,2:end)=angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1)));
+%     Phase=Phase+repmat([-AvgPhase, +AvgPhase], [PixelNum, AlineNum/2]);
+%     Phase=-Phase*triu(ones(size(Phase,2)));
+%     ComplexImage=abs(ComplexImage).*exp(1i*Phase);
+%     CaliedData=ifft(ComplexImage);
+%     %% method 1
+% %     CaliedData=H0+H1.*repmat([1,-1],[PixelNum,AlineNum/2]);    
+% %     ComplexImage=ifft(CaliedData);
+% %     ComplexImage(:,2:end)=sqrt(ComplexImage(:,2:end).*ComplexImage(:,1:end-1));
+% %     H0=GetFreqComp(ComplexImage',[1, BandWidth],3)';
+% %     
+% %     ComplexImage=ifft(CaliedData);
+% %     ComplexImage(:,2:end)=sqrt(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1)));
+% %     H1=ComplexImage.*repmat([1,-1],[PixelNum,AlineNum/2]);
+% %     H1=GetFreqComp(H1',[1, BandWidth],3)';  
+% %     
+% %     ComplexImage=H0-1i*H1;
+% %     CaliedData=fft(ComplexImage);
+%     %% method 0
+% %     ComplexImage=ifft(CaliedData);
+% %     ComplexImage=abs(ComplexImage(:,2:end)) ... 
+% %         .*exp(1i*angle(ComplexImage(:,2:end).*ComplexImage(:,1:end-1)));
+% %     H0=GetFreqComp(ComplexImage',[1, BandWidth],3)';
+% % 
+% %     ComplexImage=ifft(CaliedData);
+% %     ComplexImage=abs(ComplexImage(:,2:end)) ...
+% %         .*exp(1i*angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1))));
+% %     H1=ComplexImage.*repmat([1,-1],[PixelNum,AlineNum/2]);
+% %     H1=GetFreqComp(H1',[1, BandWidth],3)';  
+% %     
+% %     HRatio=mean(abs(H1),2)./mean(abs(H0),2);
+% %     HRatio=mean(HRatio);
+% %     ComplexImage= HRatio*H0-1i*H1;
+% %     CaliedData=fft(ComplexImage);
+% %     ComplexImage(:,2:end)=sqrt(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1)));     
+% %     Phase=angle(ComplexImage);
+% %     for i=2:AlineNum
+% %         PhaseDiff= Phase(2:end/2,i+1)-Phase(2:end/2,i);
+% %         if mod(i,2)
+% %             Phase(:,i+1)=Phase(:,i+1)-(PhaseDiff>0)*pi;   
+% %         else
+% %             Phase(:,i+1)=Phase(:,i+1)+(PhaseDiff<0)*pi;
+% %         end
+% %     end              
+%         
+% %     Phase=GetFreqComp(Phase',[AlineNum/2+1,AlineNum/2+1],2)';
+% %     ComplexImage=abs(ComplexImage).*exp(1i*Phase);
+% %     ComplexImage(:,1:2:end)=-ComplexImage(:,1:2:end).*repmat(exp(1i*0.5*pi),PixelNum, AlineNum/2);
+% 
+% 
+% %     Angle=angle(ComplexImage);
+% %     ComplexImage=ComplexImage.*exp(1i*Angle);
+% %     ComplexImage(:,2:end)=ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1));    
+%     
+% %     H0=GetFreqComp(ComplexImage',[1, BandWidth],3)';
+% %     H1=ComplexImage.*repmat([1,-1],[PixelNum,AlineNum/2]);
+% %     H1=GetFreqComp(H1',[1, BandWidth],3)';  
+%     
+% %     ComplexImage(:,3:end)=abs(ComplexImage(:,3:end)).* exp(1i* Angle2);         
+% %     HRatio=median(mean(abs(H1),2)./mean(abs(H0),2));    
+% %     
+% %     ComplexImage=1.18*H0-1i*H1;
+% %     ComplexImage=0.85*H0+1i*H1;
+% %     CaliedData=fft(ComplexImage);
+%     
+% %     ComplexImage(:,2:end)=sqrt(ComplexImage(:,2:end)).*sqrt(conj(ComplexImage(:,1:end-1))); 
+% %     NewPhase=angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1))); 
+% %     NewPhase=[NewPhase(:,2), NewPhase];
+% %     ComplexImage=abs(ComplexImage).*exp(1i*NewPhase/2);     
+%     
+% %     IntensityImage=20*log10(abs(ComplexImage));
+% %     DisplayRange=GetDisplayRange(IntensityImage, [0.1 0]);
+% %     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+% %     HRatio=mean(abs(H1),2)./mean(abs(H0),2);
+% %     HRatio=median(tan(FSPhaseShift/2));    
+% %     if ~isempty(FSPhaseShift)
+% %     else
+% %         HRatio=mean(ComplexImage(:));
+% % %         HRatio=median(NewPhase(:,1:2:end));
+% % %         HRatio=mean(abs(H1),2)./mean(abs(H0),2);
+% % %         HRatio=mean(abs(H1.^2),2)./mean(abs(H0.^2),2);
+% %     end
+% %  for HRatio=0.95:0.01:1.05
+% %     pause;
+% %  end 
+%     %% method 2
+% %     ComplexImage=ifft(CaliedData,2048);
+% %     NewPhase=angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1))); 
+% %     NewPhase=[NewPhase(:,2), NewPhase];
+% %     ComplexImage=abs(ComplexImage).*exp(1i*NewPhase/2);    
+% %     H0=GetFreqComp(ComplexImage',Filter,3)';
+% %     H1=ComplexImage.*repmat([1,-1],[2048,AlineNum/2]);
+% %     H1=GetFreqComp(H1',Filter,3)';  
+% %     HRatio=mean(abs(H1(:).^2))./mean(abs(H0(:).^2));
+% %     ComplexImage=HRatio * H0+1i*H1;
+% % %     IntensityImage=20*log10(abs(ComplexImage));
+% % %     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+% % %     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);  
+%     %% method 3
+% %     ComplexImage=ifft(CaliedData,2048);
+% %     NewPhase=angle(ComplexImage(:,2:end).*conj(ComplexImage(:,1:end-1))); 
+% % %     NewPhase=[NewPhase(:,2), NewPhase];
+% %     ComplexImage(:,2:end)=abs(ComplexImage(:,2:end)).*exp(1i*NewPhase/2);    
+% %     ComplexImage(:,1:2:end)=ComplexImage(:,1:2:end)*exp(1i*0.5*pi);
+% %     ComplexImage=GetFreqComp(ComplexImage',Filter,3)';
+% % %     IntensityImage=20*log10(abs(ComplexImage));
+% % %     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+% % %     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+% % 
+% %     CaliedData=fft(ComplexImage);   
+%     %% method 4
+% %     CaliedData1=GetFreqComp(CaliedData,[2,PixelNum/2],1);
+% %     CaliedData2=GetFreqComp(CaliedData,[PixelNum/2+2,PixelNum],1);
+% %     
+% % %     NewPhase1=angle(CaliedData1(:,2:end).*conj(CaliedData1(:,1:end-1)));
+% % %     NewPhase2=angle(CaliedData2(:,2:end).*conj(CaliedData2(:,1:end-1)));
+% %     CaliedData1(:,2:end)=sqrt(CaliedData1(:,2:end).*conj(CaliedData1(:,1:end-1)));
+% %     CaliedData2(:,2:end)=sqrt(CaliedData2(:,2:end).*conj(CaliedData2(:,1:end-1)));
+% %     CaliedData=CaliedData1;
+% %     
+%     
+% %     NewPhase=[NewPhase(:,2), NewPhase];
+% %     IntensityImage=20*log10(abs(ComplexImage));
+% %     DisplayRange=GetDisplayRange(IntensityImage, [0.5 0]);
+% %     figure;imshow(fftshift(IntensityImage,1),'DisplayRange',DisplayRange);
+% end
+%% calculate HRatio
+% HRatio=sqrt(sum(H1.^2,2)./sum(H2.^2,2));
+% HRatio=filtfilt(ones(1,50)/50,1,HRatio);
+
+% HRatio(:)=1;
+% save HRatio;
+% HRatio=GetFreqComp(HRatio,[1,50]);
+% HRatio=filtfilt(ones(1,50)/50,1,HRatio);
+
+% if sum(HRatio)>0
+%     if isempty(HRatioSum)
+%         HRatioSum=HRatio;
+%     else
+%         HRatioSum=HRatioSum+HRatio;
+%     end
+% end
+% hold on;plot(HRatioSum,'r');
+
+% HRatio=sum(abs(H1),2)./sum(abs(H2),2);hold on;plot(HRatio,'r')
+
+% HRatio([1:5,end-5:end])=1;
+% figure;plot(HRatio,'r')
+% HRatioSign=(sum(H1,2)./sum(H2,2) > 0);
+% HRatio=HRatio-2*HRatio.*(HRatioSign);
+% HRatioSign= H1 ./ H2 > 0;
+
+% figure;imshow(H2,[]);figure;imshow(H1,[]);figure;plot(sum(angle(H2+1i*H1)),1);
+
+
+% CaliedData=(fft(CaliedData));
+
+% figure;plot((abs(fft(NewData))));%
+% figure;imshow(abs(fftshift(fft(NewData),1)),[]);
+% RawData=NewData;
+% 
+% fftData=fft(CaliedData,[],2);
+% figure;imshow(((CaliedData(:,:)')))
+% 
+% 
+% tmp=diff(CaliedData(:,:)');
+% figure;imshow(CaliedData(:,2:end-1)'/10)
+% 
+% figure;plot(sum(tmp(2:2:end,:)))
+% figure;imshow(tmp);
+% figure;imshow(abs(fftshift((fft(CaliedData),1))),[])

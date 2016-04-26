@@ -1,0 +1,4 @@
+function PhaseError=GetFSPhaseError(AvgHRatio,InstantPhase,K,FSDriverPar)
+PhaseShift=FSDriverPar(1)* sin(InstantPhase+FSDriverPar(2)) .*K-sin(InstantPhase+FSDriverPar(2)-pi/2)*FSDriverPar(3);
+
+PhaseError=sum(abs(AvgHRatio-tan(PhaseShift)));

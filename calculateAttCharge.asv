@@ -1,0 +1,19 @@
+function Charges=calculateAttCharge(Dongming, Liuling, Zhijia, JP)
+% the input should be the extra charges for sms and data, not the total charge
+
+
+Charges.Dongming=38.59+(Dongming-28.79);
+Charges.Liuling=38.59+(Liuling-28.79); 
+Charges.Zhijia=43.59+(Zhijia-77.92);
+Charges.JP=43.59+(JP-33.79) ; 
+% Charges.Bingbing=22.59+(Bingbing-13.76);   
+
+
+TotalCharge=Charges.Dongming+Charges.Liuling+Charges.Zhijia+Charges.JP
+
+% Avg=(Total-Dongming- Liuling- Zhijia- JP- Bingbing)/5   ;
+% Charges.Dongming=round((Avg+Dongming)*100)/100;
+% Charges.Liuling=round((Avg+Liuling)*100)/100;
+% Charges.Zhijia=round((Avg+Zhijia)*100)/100;
+% Charges.JP=round((Avg+JP)*100)/100;
+% Charges.Bingbing=round((Avg+Bingbing)*100)/100;

@@ -1,0 +1,16 @@
+function img = enhance_contrast(input_img, section_size, dim)
+
+if dim == 2
+    input_img = input_img';
+end
+
+for n = 1 : size(input_img,1)/section_size
+    depth_range = section_size *(n-1) +1 : section_size * n;
+    sub_img = input_img(depth_range, :);
+    display_range = getDisplayRange(sub_img, [0.5, 0.0]);
+    figure(n); imshow(sub_img,display_range);
+end
+
+if dim == 2
+    input_img = input_img';
+end

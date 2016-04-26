@@ -1,0 +1,20 @@
+function [LIMPAGO,IntensityImage]=GenerateLIMPAGO(CaliedData, FullRange, LIMPFilterSize,LIMPFilterType, ZeroPadNum)
+
+ComplexImage=ifft(CaliedData,ZeroPadNum);
+if ~FullRange
+    ComplexImage=ComplexImage(2:end/2,:);
+end
+AlineNum=size(ComplexImage,2);
+IntensityImage=FiltImage(abs(ComplexImage),LIMPFilterSize,LIMPFilterType);
+
+%% generate customized Linear Filter
+LIMPAGO=GetFreqComp(ComplexImage',[AlineNum/8,AlineNum/2+1], 3)';
+LIMPAGO=abs(FiltImage(abs(LIMPAGO),LIMPFilterSize,LIMPFilterType)./IntensityImage;
+LIMPAGO=pi*LIMPAGO;
+
+% LIMPAGOPos=GetFreqComp(ComplexImage',[AlineNum/10,AlineNum/2+1], 1)';
+% LIMPAGONeg=GetFreqComp(ComplexImage',[AlineNum/2+1,AlineNum-AlineNum/10+2], 1)';
+% 
+% LIMPAGONeg=FiltImage(abs(LIMPAGONeg),LIMPFilterSize,LIMPFilterType)./IntensityImage;
+% LIMPAGOPos=FiltImage(abs(LIMPAGOPos),LIMPFilterSize,LIMPFilterType)./IntensityImage;
+% LIMPAGO=pi*(LIMPAGOPos-LIMPAGONeg);

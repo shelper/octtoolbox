@@ -1,0 +1,28 @@
+function PsfPlot(FilePath, SystemID)
+RawData1 = GetOCTData('C:\Topcon\Projects\2013-03-29 attenuator test\inter.bin', 'ssOCTDAQ', 1000, 1376);
+RawData2 = GetOCTData('C:\Topcon\Projects\2013-03-29 attenuator test\atteninter.bin', 'ssOCTDAQ', 1000, 1376);
+
+x = (linspace(0, 1, 1376).^2 - linspace(0, 1, 1376)) * 4;
+figure;plot(x);
+disp = exp(1i * x * 19);
+OCTData1 = bsxfun(@times, RawData1, disp');
+OCTData2 = bsxfun(@times, RawData2, disp');
+
+OCTData1 = bsxfun(@times, OCTData1, gausswin(1376));
+OCTData2 = bsxfun(@times, OCTData2, gausswin(1376));
+
+psf1 = mean(abs(fft(OCTData1, 2048)),2);
+psf2 = mean(abs(fft(OCTData2, 2048)),2);
+psf1 = 20*log10(psf1(1:1024));
+psf2 = 20*log10(psf2(1:1024));
+
+figure(1);plot(psf1);
+hold on;plot(psf2,'r');
+
+psf1 = psf1 - max(psf1);
+psf2 = psf2 - max(psf2);
+
+figure(2);plot(psf1);
+hold on;plot(psf2,'r');
+
+

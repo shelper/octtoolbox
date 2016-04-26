@@ -1,0 +1,35 @@
+close all;
+phase = randn(100)*2*pi;
+phase = imfilter(phase, fspecial('gaussian', 6,2) );
+wf = exp(1i*phase);
+figure;imshow(angle(wf), []);colormap jet;
+
+focus_i = fftshift(abs(fft2(wf)));
+% figure;imshow(fftshift(focus_i),[0, 2000]);colormap hot;
+focus_p = zeros(size(phase));
+f1 = zeros(size(focus_i));
+f1(1:end/2, 1:end/2) = focus_i(51:end, 51:end);
+p1(1:end/2, 1:end/2) = focus_p(51:end, 51:end);
+
+f2(1:end/2, 1:end/2) = focus_i(1:end/2, 1:end/2);
+p2(1:end/2, 1:end/2) = focus_p(1:end/2, 1:end/2); 
+
+f3(1:end/2, 1:end/2) = focus_i(1:end/2, 1:end/2);
+p3(1:end/2, 1:end/2) = focus_p(1:end/2, 1:end/2);
+
+f4(1:end/2, 1:end/2) = focus_i(1:end/2, 1:end/2);
+p4(1:end/2, 1:end/2) = focus_p(1:end/2, 1:end/2);
+
+for m = 1:4
+    for n = 1:100
+        wf1 = ifft2(f1 .* exp(1i*focus_p));
+        wf2 = ;
+        wf2 = exp(1i*angle(wf2));
+        focus_i = abs(fft2(wf2));
+        focus_phase = angle(fft2(wf2));
+        sum(abs(angle(wf2(:))-angle(wf(:))));
+    end
+end
+
+figure;imshow(angle(wf2), []);colormap jet;
+figure;imshow(fftshift(focus_i), []);colormap jet;

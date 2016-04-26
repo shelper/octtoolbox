@@ -1,0 +1,173 @@
+%% main function to export the following functions
+function  funcs = oct_sim_funcs()
+  funcs.gen_cplx_data=@gen_cplx_data;
+  funcs.modulate_phase=@modulate_phase;
+  funcs.update_alt_phase_amp=@update_alt_phase_amp;
+  funcs.add_flow=@add_flow;
+  funcs.phase_alt_deconj=@phase_alt_deconj;
+  funcs.linear_mod_deconj=@linear_mod_deconj;
+end
+
+%% generate complex interferogram
+function cplx_data = gen_cplx_data(pix_num, aline_num, sp_profile, depth_profile, xpos_profile,oversamp_rate)
+    k = 0 : 1/(pix_num-1) : 1;
+    magnitude = bsxfun(@times, randn(pix_num, aline_num),depth_profile);
+    magnitude = bsxfun(@times, magnitude,xpos_profile);
+    phase = randn(pix_num, aline_num)*2*pi;
+    filter = fspecial('gaussian', oversamp_rate*2, 3);
+    magnitude = imfilter(magnitude, filter);
+    phase = imfilter(phase, filter);
+    cplx_data = zeros(pix_num, aline_num);
+    for x_i = 1:aline_num
+        if xpos_profile(x_i)
+            for d_i = 1:pix_num
+                if depth_profile(d_i)
+                    temp = exp(1i * 2 * pi * (d_i-pix_num/2) * k);
+                    temp = temp * magnitude(d_i, x_i) *exp(1i * phase(d_i, x_i));
+                    cplx_data(:,x_i) = cplx_data(:,x_i) + temp';
+                end
+            end
+            cplx_data(:,x_i) = cplx_data(:,x_i) .* sp_profile;
+            x_i
+        end
+    end
+end
+
+function mod_data = modulate_phase(cplx_data, phase_amp, mod_freq)
+    [pix_num, aline_num] = size(cplx_data);
+    if size(phase_amp, 1)<size(phase_amp, 2)
+        phase_amp = phase_amp';
+    end
+    if size(phase_amp, 1) == 1 || size(phase_amp, 1) == pix_num
+        mod_phase = phase_amp * cos((1:aline_num)*2*pi*mod_freq);
+    else
+        fprintf('mod_amp size does not match pix_num\n')
+        return
+    end
+    mod_data = bsxfun(@times, cplx_data, exp(-1i*mod_phase));
+end
+
+function flow_data = add_flow(cplx_data, flow_radius, flow_rate, flow_depth, flow_xpos)
+    [pix_num, aline_num] = size(cplx_data);
+    flow_phase =fspecial('gaussian', flow_radius*2+1, flow_radius/1.5);
+    flow_phase = flow_phase/max(flow_phase(:)) * flow_rate;
+    flow_phase = cumsum(flow_phase, 2);
+    aline_phase = zeros(pix_num, size(flow_phase, 2));
+    aline_phase(flow_depth-flow_radius: flow_depth+flow_radius,:) = flow_phase;
+%     %alternative way
+%     aline_phase = aline_phase/2;
+%     aline_phase(2:2:end,:) = aline_phase(1:2:end,:);
+%
+    flow_data = fft(cplx_data);
+    if flow_xpos-flow_radius >=1 && flow_xpos+flow_radius <= aline_num
+        flow_data(:, flow_xpos-flow_radius:flow_xpos+flow_radius) = ...
+            flow_data(:, flow_xpos-flow_radius:flow_xpos+flow_radius) .*exp(1i*aline_phase);
+    else
+        fprintf('flow size exceeds the boundary');
+    end
+    flow_data = ifft(flow_data);
+end
+
+function data_new = update_alt_phase_amp(data, orig_phase_amp, new_phase_amp)
+    [pix_num, aline_num] = size(data);
+    data_new = data;
+    %% method 1, by neighboring lines interpolation
+%     c0 = cos(orig_phase_amp); s0 = sin(orig_phase_amp);
+%     c1 = cos(new_phase_amp); s1 = sin(new_phase_amp);
+%     data_new = zeros(pix_num, aline_num);
+%     data_new(:, 1) = data(:, 1); data_new(:,end) = data(:,end);
+%     for i = 2 : 2 : aline_num-1
+%         % caculate for even # aline
+%         l_pos = data(:, i-1);
+%         l_neg = data(:, i);
+%         a = 0.5*(l_pos+l_neg)./c0;
+%         b = 0.5*(l_pos-l_neg)./s0;
+%         data_new(:, i) = l_neg+ a.*(c1-c0) - b.*(s1-s0);
+%         % caculate for odd # aline
+%         l_neg = data(:, i);
+%         l_pos = data(:, i +1);
+%         a = 0.5*(l_pos+l_neg)./c0;
+%         b = 0.5*(l_pos-l_neg)./s0;
+%         data_new(:, i+1) = l_pos+ a.*(c1-c0) + b.*(s1-s0);
+%     end
+    %% method 2, by correcting the phase_amp flatness for one side
+    H0 = GetFreqComp(data(:, 1:2:end),[1, pix_num/2+1],1);
+    H1 = GetFreqComp(data(:, 2:2:end),[1, pix_num/2+1],1);
+    H0 = bsxfun(@times, H0,exp(1i*2*(new_phase_amp-orig_phase_amp)));
+    H1 = bsxfun(@times, H1,exp(-1i*(new_phase_amp-orig_phase_amp)));
+    data_new(:, 1:2:end) = real(H0)*2;
+    data_new(:, 2:2:end) = real(H1)*2;
+end
+
+function fr_data = phase_alt_deconj(data, phase_amp, bandwidth, method)
+    [pix_num, aline_num] = size(data);
+    bandwidth = aline_num * bandwidth;
+    if method ==1
+        H0 = GetFreqComp(data',[1, bandwidth],3)';
+        H0 = bsxfun(@times, H0, tan(phase_amp));
+        H1 = data.*repmat([1,-1],[pix_num,aline_num/2]);%figure;plot(abs(fft(NewData,[],2))')
+        H1 = GetFreqComp(H1',[1, bandwidth],3)';
+        fr_data = H0 - 1i*H1 ;
+    elseif method ==2
+        data = update_alt_phase_amp(data, phase_amp, pi/8);
+%         figure;plot(data(:, 400),'r');
+        cplx_img = fft(data);
+        phase_diff= angle(cplx_img(:, 2:end) .* conj(cplx_img(:, 1:end-1)));
+%         figure;imshow(phase_diff(725:875, 350:450),[]);colormap jet;
+        cplx_img(:, 2:end) = abs(cplx_img(:, 2:end)).* exp(1i*phase_diff);% 2nd order signal generation
+%         figure;plot(abs(fft(cplx_img')));
+        H0 = GetFreqComp(cplx_img',[1, bandwidth],3)';
+        H1 = cplx_img.*repmat([1,-1],[pix_num,aline_num/2]);
+        H1 = GetFreqComp(H1',[1, bandwidth],3)';
+        cplx_img = H0 - 1i*H1;
+        fr_data = ifft(cplx_img);
+    elseif method ==3
+        cplx_img = fft(data);
+        phase_diff= angle(cplx_img(:, 2:end) .* conj(cplx_img(:, 1:end-1)));
+%         figure;imshow(phase_diff(725:875, 350:450),[]);colormap jet;
+        cplx_img(:, 2:end) = abs(cplx_img(:, 2:end)).* exp(1i*phase_diff);% 2nd order signal generation
+%         figure;plot(abs(fft(cplx_img')));
+        H0 = GetFreqComp(cplx_img',[1, bandwidth],3)';
+        H1 = cplx_img.*repmat([1,-1],[pix_num,aline_num/2]);
+        H1 = GetFreqComp(H1',[1, bandwidth],3)';
+        cplx_img = H0 * tan(mean(phase_amp)*2)- 1i*H1;
+        fr_data = ifft(cplx_img);
+    elseif method ==4
+        cplx_img = fft(data);
+        cplx_img(:, 2:end) = (cplx_img(:, 2:end) .* conj(cplx_img(:, 1:end-1)));
+        H0 = GetFreqComp(cplx_img',[1, bandwidth],3)';
+        H1 = cplx_img.*repmat([1,-1],[pix_num,aline_num/2]);
+        H1 = GetFreqComp(H1',[1, bandwidth],3)';
+
+        figure()
+        for Ratio = 0.9:0.02:1.1
+            Ratio
+            cplx_img = H0 * Ratio- 1i*H1;
+            imshow(sqrt(fftshift(abs(cplx_img), 1)),[0, 20]);
+            pause;
+        end
+
+        cplx_img = H0 * tan(mean(phase_amp*2))- 1i*H1;
+        fr_data = ifft(cplx_img);
+    end
+end
+
+function fr_data = linear_mod_deconj(data, phase_amp, order)
+    [pix_num, aline_num] = size(data);
+    if order ==1
+        data = update_alt_phase_amp(data, phase_amp, pi/4);
+        data(:, 3:4:end) = -data(:, 3:4:end);
+        data(:, 4:4:end) = -data(:, 4:4:end);
+        fr_data = GetFreqComp(data',[1, aline_num/2],1)';
+    elseif order == 2
+        data = update_alt_phase_amp(data, phase_amp, pi/8);
+        cplx_img = fft(data);
+        phase_diff = angle(cplx_img);
+        phase_diff(:, 2:end)= angle(cplx_img(:, 2:end) .* conj(cplx_img(:, 1:end-1)));
+        cplx_img = abs(cplx_img).* exp(1i*phase_diff);% 2nd order signal generation
+        cplx_img(:, 3:4:end) = -cplx_img(:, 3:4:end);
+        cplx_img(:, 4:4:end) = -cplx_img(:, 4:4:end);
+        cplx_img = GetFreqComp(cplx_img',[1, aline_num/2],1)';
+        fr_data = ifft(cplx_img);
+    end
+end

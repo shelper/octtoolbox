@@ -1,0 +1,41 @@
+function CorrectedData = NonModInitialPixelShift(CaliedData,MaxShift)
+
+i=1;
+for p = -MaxShift : MaxShift
+    for q = -MaxShift : MaxShift
+        if abs(q-p)<=MaxShift 
+            ShiftArray(i,:)=[p, q];
+            i = i+1;
+        end
+    end
+end
+Suppression= zeros(1, size(ShiftArray,1));
+Line1=CaliedData(:,1);
+for i = 1:size(ShiftArray,1)
+    Line2=circshift(CaliedData(:,2),ShiftArray(i,1));
+    Line3=circshift(CaliedData(:,3),ShiftArray(i,2));
+    Line = fft(Line2).^2.*conj(fft(Line1).*fft(Line3));
+    Line = sqrt(sqrt(Line(end/2+150:end)));     
+
+    Phase=abs(angle(Line));      
+    LineInt=abs(Line);   
+    Suppression(i) = sum(Phase.*LineInt)/sum(LineInt);
+
+    Line = fft(Line1).*conj(fft(Line2));
+    Line = Line(end/2+150:end);
+    Phase=abs(angle(Line*conj(sum(Line))));      
+    LineInt=abs(Line);       
+    Suppression(i) = Suppression(i) + sum(Phase.*LineInt)/sum(LineInt);  
+    
+    Line = fft(Line2).*conj(fft(Line3));
+    Line = Line(end/2+150:end);
+    Phase=abs(angle(Line*conj(sum(Line))));      
+    LineInt=abs(Line);       
+    Suppression(i) = Suppression(i) + sum(Phase.*LineInt)/sum(LineInt);
+    
+end
+[~, i]= min(Suppression);
+CorrectedData(:,1)=Line1;
+CorrectedData(:,2)=circshift(CaliedData(:,2),ShiftArray(i,1));
+CorrectedData(:,3)=circshift(CaliedData(:,3),ShiftArray(i,2));
+
